@@ -1,5 +1,6 @@
 import { check, validationResult } from 'express-validator';
 import User from '../models/User.js';
+import { generateId } from '../helpers/tokens.js';
 
 const formLogin = (req, res) => {
   res.render('auth/login', {
@@ -30,13 +31,25 @@ const signup = async (req, res) => {
       })
       .run(req),
   ]);
+
   const result = validationResult(req);
   if (!result.isEmpty()) {
     return res.status(400).json({ errors: result.array() });
   }
 
-  const user = await User.create(req.body);
-  res.json(user);
+  const { name, email, password } = req.body;
+
+  const userExists = await User.findOne({ where: { email } });
+  if (userExists) {
+    return res.status(400).json({
+      errors: [
+        {
+          msg: 'El usuario ya existe!',
+        },
+      ],
+    });
+  }
+  await User.create({ name, email, password, token: generateId() });
 };
 
 const formRecovery = (req, res) => {
