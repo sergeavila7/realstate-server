@@ -1,13 +1,16 @@
 import express from 'express';
+import {
+  formLogin,
+  formRecovery,
+  formSignup,
+  signup,
+} from '../controllers/user.js';
 
 const router = express.Router();
 
-router.get('/', function (req, res) {
-  res.json({ msg: 'Hola mundo en express' });
-});
-
-router.get('/users', function (req, res) {
-  res.send({ msg: 'Hola mundo en expraess' });
-});
+router.get('/login', formLogin);
+router.get('/signup', formSignup);
+router.post('/signup', signup);
+router.get('/recovery', formRecovery);
 
 export default router;
