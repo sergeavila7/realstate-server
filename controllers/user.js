@@ -1,18 +1,7 @@
 import { check, validationResult } from 'express-validator';
 import User from '../models/User.js';
 import { generateId } from '../helpers/tokens.js';
-
-const formLogin = (req, res) => {
-  res.render('auth/login', {
-    page: 'Iniciar sesion',
-  });
-};
-
-const formSignup = (req, res) => {
-  res.render('auth/signup', {
-    page: 'Crear cuenta',
-  });
-};
+import { emailSignup } from '../helpers/email.js';
 
 const signup = async (req, res) => {
   await Promise.all([
@@ -39,23 +28,55 @@ const signup = async (req, res) => {
 
   const { name, email, password } = req.body;
 
-  const userExists = await User.findOne({ where: { email } });
-  if (userExists) {
-    return res.status(400).json({
-      errors: [
-        {
-          msg: 'El usuario ya existe!',
-        },
-      ],
+  try {
+    const userExists = await User.findOne({ where: { email } });
+    if (userExists) {
+      return res.status(400).json({
+        errors: [{ msg: 'El usuario ya existe!' }],
+      });
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      password,
+      token: generateId(),
     });
+
+    emailSignup({ name: user.name, email: user.email, token: user.token });
+
+    return res.status(200).json({ msg: 'Usuario creado correctamente' });
+  } catch (error) {
+    console.error('Error al crear el usuario:', error);
+    return res.status(500).json({ error: 'Error interno del servidor' });
   }
-  await User.create({ name, email, password, token: generateId() });
+};
+const confirm = async (req, res) => {
+  const { token } = req.params;
+
+  try {
+    const user = await User.findOne({ where: { token } });
+
+    if (!user) {
+      return res.status(400).json({
+        errors: [
+          {
+            msg: 'Hubo un error al confirmar tu cuenta, intenta de nuevo',
+            error: true,
+          },
+        ],
+      });
+    }
+
+    user.token = null;
+    user.confirmed = true;
+    await user.save();
+
+    return res.status(200).json({ msg: 'La cuenta se confirmó correctamente' });
+  } catch (error) {
+    console.error('Error al confirmar la cuenta:', error);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
 };
 
-const formRecovery = (req, res) => {
-  res.render('auth/recovery', {
-    page: 'Recupera tu acceso a bienes raices',
-  });
-};
-
-export { formLogin, formSignup, signup, formRecovery };
+export { signup, confirm };
